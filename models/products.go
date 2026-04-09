@@ -20,7 +20,7 @@ func GetAllProducts() []Product {
 		log.Fatal("Database connection error:", err)
 	}
 
-	allProductsSelect, err := db.Query("SELECT *FROM products")
+	allProductsSelect, err := db.Query("SELECT *FROM products order by id asc")
 	if err != nil {
 		panic(err.Error())
 	}
@@ -77,5 +77,52 @@ func DeleteProduct(productId string) {
 	}
 
 	deleteProduct.Exec(productId)
+	defer db.Close()
+}
+
+func EditProduct(productId string) Product {
+	db, err := db.DataBaseConnection()
+	if err != nil {
+		log.Fatal("Database connection error:", err)
+	}
+
+	producInDataBase, err := db.Query("SELECT *FROM products WHERE id = $1", productId)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	productToUpdate := Product{}
+
+	for producInDataBase.Next() {
+		var id, quantity int
+		var name, description string
+		var price float64
+
+		err = producInDataBase.Scan(&id, &name, &description, &price, &quantity)
+		if err != nil {
+			panic(err.Error())
+		}
+
+		productToUpdate.Id = id
+		productToUpdate.Name = name
+		productToUpdate.Description = description
+		productToUpdate.Price = price
+		productToUpdate.Quantity = quantity
+	}
+	defer db.Close()
+	return productToUpdate
+}
+
+func UpdateProduct(id int, name, description string, price float64, quantity int) {
+	db, err := db.DataBaseConnection()
+	if err != nil {
+		log.Fatal("Database connection error:", err)
+	}
+
+	updateProduct, err := db.Prepare("UPDATE products SET name = $1, description = $2, price = $3, quantity = $4 WHERE id = $5")
+	if err != nil {
+		panic(err.Error())
+	}
+	updateProduct.Exec(name, description, price, quantity, id)
 	defer db.Close()
 }
